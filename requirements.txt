@@ -6,8 +6,7 @@ langchain-community
 langchain-groq
 langchain-core
 langchain-text-splitters
-langchain-chroma
-chromadb
+chromadb==0.4.24
 sentence-transformers
 pypdf
 python-dotenv
