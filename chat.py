@@ -1,19 +1,7 @@
-import os
 import streamlit as st
-from dotenv import load_dotenv
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
-from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.messages import HumanMessage, AIMessage
+import requests
 
-load_dotenv()
-
-CHROMA_PATH = "data/chroma"
-DOCS_PATH = "docs"
+API_URL = "http://127.0.0.1:8000/chat"
 
 st.set_page_config(
     page_title="LEO - Manulife Integration Assistant",
@@ -21,99 +9,11 @@ st.set_page_config(
     layout="centered"
 )
 
-@st.cache_resource
-def load_chain():
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-
-    # if chroma db doesn't exist, build it from docs
-    if not os.path.exists(CHROMA_PATH):
-        st.info("Building knowledge base for the first time, please wait...")
-        documents = []
-        for filename in os.listdir(DOCS_PATH):
-            if filename.endswith(".pdf"):
-                filepath = os.path.join(DOCS_PATH, filename)
-                loader = PyPDFLoader(filepath)
-                docs = loader.load()
-                for doc in docs:
-                    doc.metadata["source"] = filename
-                documents.extend(docs)
-
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=500,
-            chunk_overlap=50
-        )
-        chunks = splitter.split_documents(documents)
-
-        vectorstore = Chroma.from_documents(
-            documents=chunks,
-            embedding=embeddings,
-            persist_directory=CHROMA_PATH
-        )
-    else:
-        vectorstore = Chroma(
-            persist_directory=CHROMA_PATH,
-            embedding_function=embeddings
-        )
-
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-
-    llm = ChatGroq(
-        model="llama-3.3-70b-versatile",
-        api_key=os.getenv("GROQ_API_KEY"),
-        temperature=0
-    )
-
-    return retriever, llm
-
-def get_answer(question, chat_history, retriever, llm):
-    SYSTEM_PROMPT = """You are LEO, an intelligent support assistant for Manulife's procurement team.
-You help employees understand and resolve Fieldglass to Workday integration errors.
-
-Use ONLY the context provided below to answer the question.
-If the answer is not in the context, say: I don't have enough information to answer that. Please contact the Integration Support Team via ServiceNow.
-
-Always structure your answer in 3 parts:
-1. Likely Cause: explain what probably went wrong
-2. Steps to Fix: clear step by step actions the user can take
-3. Who to Contact: if self-service does not work, who should they escalate to
-
-Context:
-{context}"""
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", SYSTEM_PROMPT),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{question}")
-    ])
-
-    docs = retriever.invoke(question)
-    context = "\n\n".join([
-        "[Source: " + doc.metadata.get("source", "unknown") + "]\n" + doc.page_content
-        for doc in docs
-    ])
-    sources = list(set([doc.metadata.get("source", "unknown") for doc in docs]))
-
-    history = []
-    for msg in chat_history[-5:]:
-        if msg["role"] == "user":
-            history.append(HumanMessage(content=msg["content"]))
-        elif msg["role"] == "assistant":
-            history.append(AIMessage(content=msg["content"]))
-
-    chain = prompt | llm | StrOutputParser()
-    answer = chain.invoke({
-        "context": context,
-        "chat_history": history,
-        "question": question
-    })
-
-    return answer, sources
-
-# ── UI ───────────────────────────────────────────────────────────────────────
 st.title("LEO")
 st.caption("Manulife Fieldglass to Workday Integration Support Assistant")
 st.divider()
 
+# initialise session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
     st.session_state.messages.append({
@@ -122,8 +22,7 @@ if "messages" not in st.session_state:
         "sources": []
     })
 
-retriever, llm = load_chain()
-
+# display chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
@@ -132,7 +31,10 @@ for message in st.session_state.messages:
                 for source in message["sources"]:
                     st.markdown(f"- {source}")
 
+# chat input
 if question := st.chat_input("Ask LEO about your integration issue..."):
+
+    # add user message
     st.session_state.messages.append({
         "role": "user",
         "content": question,
@@ -141,17 +43,32 @@ if question := st.chat_input("Ask LEO about your integration issue..."):
     with st.chat_message("user"):
         st.markdown(question)
 
+    # get answer from backend
     with st.chat_message("assistant"):
         with st.spinner("LEO is thinking..."):
             try:
-                answer, sources = get_answer(
-                    question,
-                    st.session_state.messages[:-1],
-                    retriever,
-                    llm
+                # send full chat history for memory
+                history = [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages[:-1]  # exclude current question
+                ]
+                response = requests.post(
+                    API_URL,
+                    json={
+                        "question": question,
+                        "chat_history": history
+                    },
+                    timeout=30
                 )
+                if response.status_code == 200:
+                    data = response.json()
+                    answer = data["answer"]
+                    sources = data["sources"]
+                else:
+                    answer = "Sorry, I encountered an error. Please try again or contact the Integration Support Team via ServiceNow."
+                    sources = []
             except Exception as e:
-                answer = "Sorry, I encountered an error. Please try again or contact the Integration Support Team via ServiceNow."
+                answer = "Sorry, I could not connect to the backend. Please make sure the server is running."
                 sources = []
 
         st.markdown(answer)
