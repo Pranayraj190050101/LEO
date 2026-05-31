@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
@@ -12,7 +12,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 load_dotenv()
 
-CHROMA_PATH = "data/chroma"
+FAISS_PATH = "data/faiss"
 DOCS_PATH = "docs"
 
 st.set_page_config(
@@ -25,8 +25,7 @@ st.set_page_config(
 def load_chain():
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-    # if chroma db doesn't exist, build it from docs
-    if not os.path.exists(CHROMA_PATH):
+    if not os.path.exists(FAISS_PATH):
         st.info("Building knowledge base for the first time, please wait...")
         documents = []
         for filename in os.listdir(DOCS_PATH):
@@ -43,16 +42,14 @@ def load_chain():
             chunk_overlap=50
         )
         chunks = splitter.split_documents(documents)
-
-        vectorstore = Chroma.from_documents(
-            documents=chunks,
-            embedding=embeddings,
-            persist_directory=CHROMA_PATH
-        )
+        vectorstore = FAISS.from_documents(chunks, embeddings)
+        os.makedirs(FAISS_PATH, exist_ok=True)
+        vectorstore.save_local(FAISS_PATH)
     else:
-        vectorstore = Chroma(
-            persist_directory=CHROMA_PATH,
-            embedding_function=embeddings
+        vectorstore = FAISS.load_local(
+            FAISS_PATH,
+            embeddings,
+            allow_dangerous_deserialization=True
         )
 
     retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
@@ -109,7 +106,6 @@ Context:
 
     return answer, sources
 
-# ── UI ───────────────────────────────────────────────────────────────────────
 st.title("LEO")
 st.caption("Manulife Fieldglass to Workday Integration Support Assistant")
 st.divider()
