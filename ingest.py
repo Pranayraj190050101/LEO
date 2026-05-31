@@ -8,7 +8,7 @@ from langchain_community.vectorstores import FAISS
 load_dotenv()
 
 DOCS_PATH = "docs"
-CHROMA_PATH = "data/chroma"
+FAISS_PATH = "data/faiss"
 
 def load_documents():
     documents = []
