@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 
 load_dotenv()
 
@@ -40,11 +40,8 @@ def create_vectorstore(chunks):
         model_name="all-MiniLM-L6-v2"
     )
     print("Embedding and storing chunks in ChromaDB...")
-    vectorstore = Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        persist_directory=CHROMA_PATH
-    )
+    vectorstore = FAISS.from_documents(chunks, embeddings)
+    vectorstore.save_local(FAISS_PATH)
     print(f"\nDone! Vectorstore saved to: {CHROMA_PATH}")
     return vectorstore
 
