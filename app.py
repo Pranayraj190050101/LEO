@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
@@ -13,7 +13,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 load_dotenv()
 
-CHROMA_PATH = "data/chroma"
+FAISS_PATH = "data/faiss"
 
 app = FastAPI()
 
@@ -21,9 +21,10 @@ print("Loading LEO...")
 
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-vectorstore = Chroma(
-    persist_directory=CHROMA_PATH,
-    embedding_function=embeddings
+vectorstore = FAISS.load_local(
+    FAISS_PATH,
+    embeddings,
+    allow_dangerous_deserialization=True
 )
 
 retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
