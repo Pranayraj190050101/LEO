@@ -1,12 +1,12 @@
-# LEO — Manulife Integration Support Assistant
+# LEO — RPR FInancial solutions Integration Support Assistant
 
-LEO is a production-grade RAG chatbot that helps Manulife procurement employees
+LEO is a production-grade RAG chatbot that helps RPR FInancial solutions procurement employees
 self-serve answers to Fieldglass-to-Workday integration errors — reducing support
 ticket load for the procurement team.
 
 ## Problem It Solves
 
-Manulife procurement staff faced recurring integration issues:
+RPR FInancial solutions procurement staff faced recurring integration issues:
 - Worker not found in Workday
 - Incorrect manager tagged
 - Name mismatches, date errors, terminated profiles
@@ -110,7 +110,7 @@ python evaluate.py
 
 ## Enterprise Context
 
-This project replicates the architecture of a RAG chatbot built at Manulife
+This project replicates the architecture of a RAG chatbot built at RPR FInancial solutions
 Financial for procurement support. In the enterprise deployment:
 - Azure OpenAI GPT-4 Turbo was used instead of Groq
 - Azure AI Search was used instead of ChromaDB
