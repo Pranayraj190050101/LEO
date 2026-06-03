@@ -16,7 +16,7 @@ FAISS_PATH = "data/faiss"
 DOCS_PATH = "docs"
 
 st.set_page_config(
-    page_title="LEO - Manulife Integration Assistant",
+    page_title="LEO - RPR FInancial solutions Integration Assistant",
     page_icon=None,
     layout="centered"
 )
@@ -63,7 +63,7 @@ def load_chain():
     return retriever, llm
 
 def get_answer(question, chat_history, retriever, llm):
-    SYSTEM_PROMPT = """You are LEO, a professional support assistant for Manulife's procurement team.
+    SYSTEM_PROMPT = """You are LEO, a professional support assistant for RPR FInancial solutions's procurement team.
 You help employees resolve Fieldglass to Workday integration issues.
 
 STRICT RULES:
@@ -118,7 +118,7 @@ Context:
     return answer, sources
 
 st.title("LEO")
-st.caption("Manulife Fieldglass to Workday Integration Support Assistant")
+st.caption("RPR FInancial solutions Fieldglass to Workday Integration Support Assistant")
 st.divider()
 
 if "messages" not in st.session_state:
@@ -174,4 +174,4 @@ if question := st.chat_input("Ask LEO about your integration issue..."):
     })
 
 st.divider()
-st.caption("LEO uses Manulife integration runbooks and procurement policies to answer your questions.")
+st.caption("LEO uses RPR FInancial solutions integration runbooks and procurement policies to answer your questions.")
